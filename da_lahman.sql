@@ -7,6 +7,10 @@ ORDER BY year DESC;
 SELECT *
 FROM homegames
 ORDER BY year;
+------
+SELECT MAX(year) AS most_recent_year, 
+		MIN(year) AS earliest_year
+FROM homegames;
 ------------------------------------------------------------------------------
 2. Find the name and height of the shortest player in the 
 database. How many games did he play in? 
@@ -19,21 +23,17 @@ WHERE height IS NOT NULL
 ORDER BY height
 LIMIT 1;
 --------teamid 'SLA' and year 1951
+----inner joit teams table to get the name of team---
 SELECT *
 FROM people INNER JOIN appearances
 		USING (playerid)
-WHERE height IS NOT NULL AND playerid = 'gaedeed01'
-ORDER BY height;
--------He played 52 games-----------
+			JOIN teams 
+    		ON appearances.teamID = teams.teamID
+    		AND appearances.yearID = teams.yearID
+WHERE height IS NOT NULL AND playerid = 'gaedeed01';
+--ORDER BY height;
+-------He played 1 game---team name: St.Louis Browns
 
-SELECT playerid, appearances.teamid, COUNT(teams.yearid) AS no_years_played
-FROM people INNER JOIN appearances
-			  USING (playerid)
-			INNER JOIN teams
-			ON appearances.teamid = teams.teamid
-WHERE height IS NOT NULL AND playerid = 'gaedeed01'
-GROUP BY playerid, appearances.teamid
-ORDER BY height;
 
 ----------------------------------------------------------------
 3. Find all players in the database who played at 
@@ -43,21 +43,49 @@ the total salary they earned in the major leagues.
 Sort this list in descending order by the total salary earned.
 Which Vanderbilt player earned the most money in the majors?
 -------------David Price----------------------------------------------------
+----started with people table and joined collegeplaying and schools table-
+---and also sored it with school name-----
 
 SELECT *
 FROM people INNER JOIN collegeplaying
-			USING (playerid);
+			USING (playerid)
+			INNER JOIN schools
+			USING (schoolid)
+WHERE schoolname = 'Vanderbilt University';
+
+----joining  salaries table------
+
+SELECT namefirst, namelast, salary
+FROM people INNER JOIN collegeplaying
+			USING (playerid)
+			INNER JOIN schools
+			USING (schoolid)
+			INNER JOIN salaries
+			USING (playerid)
+WHERE schoolname = 'Vanderbilt University';
+
+-----SUM of salary----order by total salary desc----
 
 SELECT namefirst, namelast, SUM(salary) AS total_salary
-FROM schools INNER JOIN collegeplaying
-				USING (schoolid)
-				INNER JOIN people 
-				USING (playerid)
-				INNER JOIN salaries
-				USING (playerid)
+FROM people INNER JOIN collegeplaying
+			USING (playerid)
+			INNER JOIN schools
+			USING (schoolid)
+			INNER JOIN salaries
+			USING (playerid)
 WHERE schoolname = 'Vanderbilt University'
-GROUP BY namefirst, namelast
+GROUP BY namefirst, namelast 
 ORDER BY total_salary DESC;
+
+
+
+SELECT *
+FROM collegeplaying;
+
+SELECT *
+FROM schools;
+
+			
 -------------------------------------------------------------------
 4. Using the fielding table, group players into 
 three groups based on their position: 
@@ -68,7 +96,48 @@ Determine the number of putouts made by each of these
 three groups in 2016.
 ----------------------------------------------------------------------------
 
+SELECT *
+FROM fielding;
 
+--------case statement--------- adding cloumn
+SELECT *,
+	CASE WHEN pos = 'OF' THEN 'Outfield'
+		WHEN pos IN ( 'SS','1B', '2B', '3B') THEN 'Infield'
+		WHEN pos IN ('P', 'C') THEN 'Battery'
+		ELSE 'none' 
+	END AS pos_groups
+FROM fielding;
+
+------adding where clause for year 2016----
+
+SELECT *, 
+	CASE WHEN pos = 'OF' THEN 'Outfield'
+		WHEN pos IN ( 'SS','1B', '2B', '3B') THEN 'Infield'
+		WHEN pos IN ('P', 'C') THEN 'Battery'
+		ELSE 'none' 
+	END AS pos_groups
+FROM fielding
+WHERE yearid = 2016;
+
+-----adding SUM of po as total putouts---
+
+SELECT playerid, pos, po,
+	CASE WHEN pos = 'OF' THEN 'Outfield'
+		WHEN pos IN ( 'SS','1B', '2B', '3B') THEN 'Infield'
+		WHEN pos IN ('P', 'C') THEN 'Battery'
+		ELSE 'none' 
+	END AS pos_groups,
+	SUM(po) AS total_putouts
+FROM fielding
+WHERE yearid = 2016
+GROUP BY playerid, pos, po,
+	CASE WHEN pos = 'OF' THEN 'Outfield'
+		WHEN pos IN ( 'SS','1B', '2B', '3B') THEN 'Infield'
+		WHEN pos IN ('P', 'C') THEN 'Battery'
+		ELSE 'none'
+	END;
+-------------------------------------------------------------
+-------trying to do total putouts by these 3 groups only-----
 SELECT 
 	CASE WHEN pos = 'OF' THEN 'Outfield'
 		WHEN pos IN ( 'SS','1B', '2B', '3B') THEN 'Infield'
@@ -77,14 +146,16 @@ SELECT
 	END AS pos_groups,
 	SUM(po) AS total_putouts
 FROM fielding
-WHERE yearid = 2016 
-		AND pos IN ('OF','SS','1B', '2B', '3B', 'P', 'C')
+WHERE yearid = 2016
 GROUP BY 
-		CASE WHEN pos = 'OF' THEN 'Outfield'
-									WHEN pos IN ( 'SS','1B', '2B', '3B') THEN 'Infield'
-									WHEN pos IN ('P', 'C') THEN 'Battery'
-									ELSE 'none' 
-		END;
+	CASE WHEN pos = 'OF' THEN 'Outfield'
+		WHEN pos IN ( 'SS','1B', '2B', '3B') THEN 'Infield'
+		WHEN pos IN ('P', 'C') THEN 'Battery'
+		ELSE 'none'
+	END;
+	
+-----------------------------------------------------------
+
 
 ------------------------------------------------------------------------------------------------------------
 5. Find the average number of strikeouts per game 
@@ -93,11 +164,166 @@ to 2 decimal places. Do the same for home runs per game.
 Do you see any trends?
 
 ----------------------------------------------------------------------
-SELECT playerid, yearid, avg(so) AS avg_strikouts
-FROM pitching
-Where yearid >= 1920
-GROUP BY playerid, yearid;
+
+-------home run--------
+
+SELECT (yearid/10 *10) AS decade, ROUND(SUM(hr):: numeric/SUM(g):: numeric, 2) AS avg_so_game
+FROM teams
+WHERE yearid >= 1920
+GROUP BY decade
+ORDER BY decade DESC;
+--------strike outs-------------------
+
+SELECT (yearid/10 *10) AS decade, ROUND(SUM(so):: numeric/SUM(g):: numeric, 2) AS avg_so_game
+FROM teams
+WHERE yearid >= 1920
+GROUP BY decade
+ORDER BY decade DESC;
+
+
+---------------------------------------------------------------------
+6. Find the player who had the most success stealing bases 
+in 2016, where __success__ is measured as the percentage 
+of stolen base attempts which are successful. 
+(A stolen base attempt results either in a stolen base 
+or being caught stealing.) Consider only players who 
+attempted _at least_ 20 stolen bases.
+---------------------------------------------------------
 
 SELECT *
-FROM pitching;
+FROM batting
+WHERE yearid = 2016;
 
+------Success = sb successfully/sb success + cs unsuccess
+
+SELECT playerid, sb, cs --(sb/NULLIF((sb + cs), 0)) AS percentage_success_sb
+FROM batting
+WHERE yearid = 2016 AND sb >=20
+ORDER BY sb DESC;
+
+-------trying to find percentage of success sb----
+
+SELECT playerid, sb, cs, sb * 100.0/NULLIF((sb + cs), 0)  AS percentage_success_sb
+FROM batting
+WHERE yearid = 2016 AND (sb + cs)>=20
+ORDER BY percentage_success_sb DESC;
+
+
+--------------------------------------------------
+SELECT PlayerID, SB, CS,
+    CASE
+        WHEN COALESCE(SB, 0) + COALESCE(CS, 0) = 0 THEN 0
+        ELSE COALESCE(SB, 0) * 100.0 / (COALESCE(SB, 0) + COALESCE(CS, 0))
+    END AS Percentage_Success_SB
+FROM Batting
+WHERE YearID = 2016 AND (COALESCE(SB, 0) + COALESCE(CS, 0)) >= 20
+ORDER BY Percentage_Success_SB DESC;
+
+--------------------------------------------------------------------------------
+
+7.  From 1970 – 2016, what is the largest number of wins 
+for a team that did not win the world series? 
+What is the smallest number of wins for a team that did win
+the world series? Doing this will probably result in 
+an unusually small number of wins for a world series 
+champion – determine why this is the case. 
+Then redo your query, excluding the problem year. 
+How often from 1970 – 2016 was it the case that a team with
+the most wins also won the world series? 
+What percentage of the time?
+
+
+
+-------------------------------------------------------------------------------
+
+SELECT *
+FROM teams;
+--------teams that did not win world series with largest
+----- wins is 116----yearid 2001 and team name Seattle Mariners
+SELECT *
+FROM teams
+WHERE wswin = 'N' 
+	AND wswin IS NOT NULL 
+	AND yearid BETWEEN 1970 AND 2016
+ORDER BY w DESC;
+
+-----did sum of wins to get total_win by team that did not win 
+----world series --largest w 3796 LA dodgers-----
+
+
+SELECT teamid, name, SUM(w) AS total_win
+FROM teams
+WHERE wswin = 'N' 
+	AND wswin IS NOT NULL 
+	AND yearid BETWEEN 1970 AND 2016
+GROUP BY teamid, name
+ORDER BY total_win DESC;
+
+--------team that did win world series with smallest
+----- wins is 90---- team name Atlanta Braves---
+
+SELECT teamid, name, SUM(w) AS total_win
+FROM teams
+WHERE wswin = 'Y' 
+	AND wswin IS NOT NULL 
+	AND yearid BETWEEN 1970 AND 2016
+GROUP BY teamid, name
+ORDER BY total_win;
+
+SELECT *
+FROM seriespost;
+
+---------------------------------------------------------------
+ 8. Using the attendance figures from the homegames table, 
+ find the teams and parks which had the top 5 
+ average attendance per game in 2016 
+ (where average attendance is defined as total 
+ attendance divided by number of games). 
+ Only consider parks where there were at least 10 games played. 
+ Report the park name, team name, and average attendance. 
+ Repeat for the lowest 5 average attendance.
+
+ --------------------------------------------------------------
+ ---park with year 2016 and games >=10-----
+ 
+ SELECT park
+ FROM homegames
+ WHERE games >=10 and year = 2016;
+ 
+ 
+ ----highest top 5 avg attendance----
+ 
+ SELECT team, park, SUM(attendance)/SUM(games) AS avg_attendance
+ FROM homegames
+ WHERE year = 2016 AND games >=10
+ GROUP BY team, park
+ ORDER BY avg_attendance DESC
+ LIMIT 5;
+
+ ----lowest top 5 avg attendance----
+ 
+ SELECT team, park, SUM(attendance)/SUM(games) AS avg_attendance
+ FROM homegames
+ WHERE year = 2016 AND games >=10
+ GROUP BY team, park
+ ORDER BY avg_attendance
+ LIMIT 5;
+
+ -------------------------------------------------------------------------------------
+
+ 9. Which managers have won the TSN Manager of the Year award
+ in both the National League (NL) and the American League (AL)?
+ Give their full name and the teams that they were managing 
+ when they won the award.
+
+ --------------------------------------------------------------
+
+ (SELECT *
+ FROM awardsmanagers
+ WHERE awardid LIKE '%TSN Manager of the Year%'
+   AND lgid = 'NL')
+INTERSECT
+ (SELECT *
+ FROM awardsmanagers
+ WHERE awardid LIKE '%TSN Manager of the Year%'
+   AND lgid = 'AL');
