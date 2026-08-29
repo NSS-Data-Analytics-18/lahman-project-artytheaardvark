@@ -101,35 +101,23 @@ ORDER BY ssb DESC;
 --result in an unusually small number of wins for a world series champion – determine why this is the 
 --case. Then redo your query, excluding the problem year. 
 
-SELECT teamid,name, yearid, w
+SELECT name, yearid,SUM(w) AS total_wins
 FROM teams
 WHERE yearid >='1970'
      AND WSWin ='N'
-GROUP BY teamid,name,yearid,w
-ORDER BY w DESC; --SEATTLE MARINERS 2001 116
+GROUP BY name,yearid
+ORDER BY total_wins DESC; --SEATTLE MARINERS 2001 116
 
 
-SELECT name, yearid, w AS total_wins
+SELECT name, yearid, SUM(W) AS total_wins
 FROM teams
 WHERE yearid>='1970'
      AND WSWin ='Y'
 	 AND yearid != 1981
 GROUP BY name,yearid
-ORDER BY w ASC; 
-
---1981 season did not have as many games 
-                                                    
+ORDER BY total_wins ASC; --1981 season was cut short by a strike. LA Dogers had 63 total wins and went 
+                                                                   -- on to win World Series
 -- smallest number of games won outside strike year STL Cardinals 83 games
-
---How often from 1970 – 2016 was it the case that a team with the most wins also won the world series? 
---What percentage of the time?
-
-SELECT name,yearid,w
-FROM teams
-WHERE yearid BETWEEN 1970 AND 2016
- AND WSWin ='Y'
-GROUP BY name,yearid,w
-ORDER BY yearid 
 
 
 --8. Using the attendance figures from the homegames table, find the teams and parks which had the 
@@ -137,77 +125,35 @@ ORDER BY yearid
 --divided by number of games). Only consider parks where there were at least 10 games played. Report
 --the park name, team name, and average attendance. Repeat for the lowest 5 average attendance.
 
-SELECT park_name, teams.name, ROUND(homegames.attendance::numeric/homegames.games::numeric,2) AS avg_attendance
-FROM homegames INNER JOIN parks USING (park)
-			   INNER JOIN teams ON homegames.team = teams.teamid
-WHERE year='2016'
-    AND games >= '10'
-GROUP BY park_name, 
-	     teams.name,
-		 homegames.attendance,
-		 homegames.games
-ORDER BY avg_attendance DESC
-		 LIMIT 5;
-
-
-SELECT park_name, teams.name, ROUND(homegames.attendance::numeric/homegames.games::numeric,2) AS avg_attendance
-FROM homegames INNER JOIN parks USING (park)
-			   INNER JOIN teams ON homegames.team = teams.teamid
-WHERE year='2016'
-    AND games >= '10'
-GROUP BY park_name, 
-	     teams.name,
-		 homegames.attendance,
-		 homegames.games
-ORDER BY avg_attendance ASC
-		 LIMIT 5;
-
-
-
 --9. Which managers have won the TSN Manager of the Year award in both the National League (NL) and the
 --American League (AL)? Give their full name and the teams that they were managing when they won the 
 --award.
-
--------- SCRAP----
-WITH al AS
-(SELECT *
-FROM awardsmanagers
-WHERE awardid = 'TSN Manager of the Year'
-      AND lgid = 'AL'),
-tp AS
-	(SELECT name,playerid,yearid
-	 FROM managers INNER JOIN teams USING (teamid,yearid))	
-SELECT aw.playerid,namefirst, namelast,tp.name,aw.yearid
-FROM awardsmanagers AS aw INNER JOIN al ON aw.playerid = al.playerid
-						  INNER JOIN people ON aw.playerid = people.playerid
-						  INNER JOIN tp ON aw.playerid = tp.playerid AND aw.yearid = tp.yearid 
-WHERE aw.awardid = 'TSN Manager of the Year'
-      AND aw.lgid = 'NL'
-ORDER BY aw.yearid 
-
 
 --10. Find all players who hit their career highest number of home runs in 2016. Consider only 
 --players who have played in the league for at least 10 years, and who hit at least one home run in 2016. 
 --Report the players' first and last names and the number of home runs they hit in 2016.
 
----- THIS IS INCORRECT -- MISSING MAX HIT IN 2016 -- HR TOTALS TOO HIGH -- TABLE SHOWS NOTHING NOW
-WITH min1_2016 AS 
-(SELECT playerid,namefirst, namelast
+---- THIS IS INCORRECT --
+
+WITH min1_2016 AS (
+SELECT playerid,namefirst, namelast
 FROM batting INNER JOIN people USING (playerid)
 WHERE HR >= '1'
 	  AND yearid = '2016'
-GROUP BY  playerid,namefirst, namelast, hr) 
-SELECT playerid,yearid,
-	   namefirst,namelast, 
-	   SUM(hr) AS hr_total
+GROUP BY  playerid,namefirst, namelast, hr) -- TABLE W/ AT LEAST 1 HR IN 2016
+SELECT playerid,namefirst,namelast, SUM(batting.hr) AS hr_total
 FROM batting INNER JOIN min1_2016 USING (playerid)
-GROUP BY  playerid,yearid ,namefirst,namelast
+GROUP BY  playerid,namefirst,namelast
 HAVING COUNT(yearid)>=10
-; -- TABLE TOTAL HOME RUNS AND AT LEASE 10 YEARS AT BAT // PLAYERS CAN PLAY A SEASON 
+ORDER BY hr_total DESC; -- TABLE TOTAL HOME RUNS AND AT LEASE 10 YEARS AT BAT // PLAYERS CAN PLAY A SEASON 
 -- AND NEVER BE AT BAT... 
 
 
-SELECT playerid,SUM(batting.hr) AS hr_total --- SUM OF ALL HOMERUNS 
-FROM batting
-GROUP BY  playerid;
 
+
+
+
+
+
+
+    
