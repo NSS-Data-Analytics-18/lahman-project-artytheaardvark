@@ -248,30 +248,45 @@ WHERE wswin = 'N'
 ORDER BY w DESC;
 
 -----did sum of wins to get total_win by team that did not win 
-----world series --largest w 3796 LA dodgers-----
+----world series --largest w Seatles Mariners 116-----
 
 
-SELECT teamid, name, SUM(w) AS total_win
+SELECT teamid, yearid, name, w AS total_win
 FROM teams
 WHERE wswin = 'N' 
 	AND wswin IS NOT NULL 
 	AND yearid BETWEEN 1970 AND 2016
-GROUP BY teamid, name
 ORDER BY total_win DESC;
 
 --------team that did win world series with smallest
 ----- wins is 90---- team name Atlanta Braves---
 
-SELECT teamid, name, SUM(w) AS total_win
+SELECT teamid, yearid, name, w AS total_win
 FROM teams
 WHERE wswin = 'Y' 
 	AND wswin IS NOT NULL 
 	AND yearid BETWEEN 1970 AND 2016
-GROUP BY teamid, name
 ORDER BY total_win;
 
-SELECT *
-FROM seriespost;
+-----Exluding outlier 1981------
+
+SELECT teamid, yearid, name, w AS total_win
+FROM teams
+WHERE wswin = 'Y' 
+	AND wswin IS NOT NULL 
+	AND yearid BETWEEN 1970 AND 2016
+	AND yearid <> 1981
+ORDER BY total_win;
+
+
+    INNER JOIN max_wins
+        ON teams.yearid = max_wins.yearid
+        AND teams.w = max_wins.max_wins)
+SELECT
+    COUNT(*) AS years_winningest_team_won_ws,
+    COUNT(*) * 100.0 / 47 AS percentage
+FROM winningest_teams
+WHERE wswin = 'Y';
 
 ---------------------------------------------------------------
  8. Using the attendance figures from the homegames table, 
@@ -293,19 +308,25 @@ FROM seriespost;
  
  ----highest top 5 avg attendance----
  
- SELECT team, park, SUM(attendance)/SUM(games) AS avg_attendance
- FROM homegames
+ SELECT name, parks.park_name, ROUND(SUM(homegames.attendance):: numeric/SUM(homegames.games):: numeric, 2) AS avg_attendance
+ FROM homegames INNER JOIN parks 
+ 				ON homegames.park = parks.park
+				 INNER JOIN teams
+				 ON homegames.team = teams.teamid
  WHERE year = 2016 AND games >=10
- GROUP BY team, park
+ GROUP BY name, parks.park_name
  ORDER BY avg_attendance DESC
  LIMIT 5;
 
  ----lowest top 5 avg attendance----
  
- SELECT team, park, SUM(attendance)/SUM(games) AS avg_attendance
- FROM homegames
+ SELECT name, parks.park_name, ROUND(SUM(homegames.attendance):: numeric/SUM(homegames.games):: numeric, 2) AS avg_attendance
+ FROM homegames INNER JOIN parks 
+ 				ON homegames.park = parks.park
+				 INNER JOIN teams
+				 ON homegames.team = teams.teamid
  WHERE year = 2016 AND games >=10
- GROUP BY team, park
+ GROUP BY name, parks.park_name
  ORDER BY avg_attendance
  LIMIT 5;
 
@@ -318,12 +339,112 @@ FROM seriespost;
 
  --------------------------------------------------------------
 
- (SELECT *
- FROM awardsmanagers
- WHERE awardid LIKE '%TSN Manager of the Year%'
-   AND lgid = 'NL')
-INTERSECT
- (SELECT *
- FROM awardsmanagers
- WHERE awardid LIKE '%TSN Manager of the Year%'
-   AND lgid = 'AL');
+SELECT a.playerid, a.yearid, p.namegiven, a.awardid, t.name, a.lgid
+FROM awardsmanagers a INNER JOIN people p
+ 						ON a.playerid = p.playerid
+					INNER JOIN appearances ap
+						ON p.playerid = ap.playerid
+					INNER JOIN teams t
+						ON ap.teamid = t.teamid AND ap.yearid = t.yearid
+WHERE awardid = 'TSN Manager of the Year'
+   AND (a.lgid = 'NL' OR a.lgid = 'AL');
+
+
+
+
+SELECT playerid
+FROM awardsmanagers 
+WHERE awardid = 'TSN Manager of the Year'
+	AND lgid IN ('AL', 'NL')
+GROUP BY playerid
+HAVING COUNT(DISTINCT lgid)=2;
+
+
+
+SELECT DISTINCT(playerid)
+FROM awardsmanagers AS S1 INNER JOIN awardsmanagers AS S2
+							USING (playerid)
+WHERE S1.awardid = 'TSN Manager of the Year'
+	AND S2.awardid = 'TSN Manager of the Year'
+	AND S1.lgid = 'AL'
+	AND S2.lgid = 'NL';
+
+-----checking for players------gives me NL for 3 diff years
+SELECT *
+FROM awardsmanagers
+WHERE playerid = 'leylaji99' AND awardid = 'TSN Manager of the Year' 
+	AND lgid IN ('AL', 'NL');
+-------this gives only 2 results so this looks correct---
+SELECT *
+FROM awardsmanagers
+WHERE playerid = 'johnsda02' AND awardid = 'TSN Manager of the Year' 
+	AND lgid IN ('AL', 'NL');
+
+---------------
+
+SELECT DISTINCT(playerid)
+FROM awardsmanagers AS S1 INNER JOIN awardsmanagers AS S2
+							USING (playerid)
+WHERE S1.awardid = 'TSN Manager of the Year'
+	AND S2.awardid = 'TSN Manager of the Year'
+	AND S1.lgid = 'AL'
+	AND S2.lgid = 'NL';
+
+
+SELECT DISTINCT people.playerid, 
+				people.namefirst, 
+				people.namelast,
+				name,
+				teams.yearid
+FROM awardsmanagers AS S1 INNER JOIN awardsmanagers AS S2
+							USING (playerid)
+							INNER JOIN people
+							USING (playerid)
+							INNER JOIN managers
+							USING (playerid)
+							INNER JOIN teams
+							ON managers.yearid = teams.yearid
+							 AND managers.teamid = teams.teamid
+							 AND S1.yearid = managers.yearid
+WHERE S1.awardid = 'TSN Manager of the Year'
+	AND S2.awardid = 'TSN Manager of the Year'
+	AND S1.lgid = 'AL'
+	AND S2.lgid = 'NL';
+
+--------
+
+SELECT *
+FROM awardsmanagers
+WHERE lgid = 'AL' and awardid = 'TSN Manager of the Year')
+
+SELECT *
+FROM awardsmanagers
+WHERE lgid = 'NL' and awardid = 'TSN Manager of the Year';
+
+
+
+
+
+
+--------------------------------------------------------------------------------------------
+
+10. Find all players who hit their career highest number of home runs 
+in 2016. Consider only players who have played in the league 
+for at least 10 years, and who hit at least one home run in  2016. 
+Report the players' first and last names and the number of home runs 
+they hit in 2016.
+
+
+SELECT *
+FROM teams
+WHERE yearid = 2016 AND g>=10 and hr >=1;
+
+SELECT *
+FROM appearances INNER JOIN teams
+					USING (yearid, teamid)
+WHERE yearid = 2016 AND g_all >= 10 AND hr >=1;
+
+
+
+
+
