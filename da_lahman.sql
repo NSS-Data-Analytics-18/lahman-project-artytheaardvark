@@ -278,15 +278,34 @@ WHERE wswin = 'Y'
 	AND yearid <> 1981
 ORDER BY total_win;
 
+------team with most wins----
 
-    INNER JOIN max_wins
-        ON teams.yearid = max_wins.yearid
-        AND teams.w = max_wins.max_wins)
-SELECT
-    COUNT(*) AS years_winningest_team_won_ws,
-    COUNT(*) * 100.0 / 47 AS percentage
-FROM winningest_teams
+
+WITH most_wins AS (
+		SELECT yearid, max(w) AS max_wins
+		FROM teams
+		WHERE yearid BETWEEN 1970 and 2016
+		AND yearid <> 1981
+		GROUP BY yearid),
+
+ most_wins_teams AS (		
+			SELECT teams.yearid, 
+					teams.name, 
+					teams.w,
+					teams.wswin
+			FROM teams INNER JOIN most_wins
+			ON teams.yearid = most_wins.yearid
+			AND teams.w = most_wins.max_wins)
+			
+SELECT COUNT (*) AS number_of_wins,
+		COUNT (*)*100.0/47 AS percentage
+FROM most_wins_teams
 WHERE wswin = 'Y';
+
+
+
+
+   
 
 ---------------------------------------------------------------
  8. Using the attendance figures from the homegames table, 
@@ -339,18 +358,10 @@ WHERE wswin = 'Y';
 
  --------------------------------------------------------------
 
-SELECT a.playerid, a.yearid, p.namegiven, a.awardid, t.name, a.lgid
-FROM awardsmanagers a INNER JOIN people p
- 						ON a.playerid = p.playerid
-					INNER JOIN appearances ap
-						ON p.playerid = ap.playerid
-					INNER JOIN teams t
-						ON ap.teamid = t.teamid AND ap.yearid = t.yearid
-WHERE awardid = 'TSN Manager of the Year'
-   AND (a.lgid = 'NL' OR a.lgid = 'AL');
 
 
 
+--finding distinct player using having count function-----
 
 SELECT playerid
 FROM awardsmanagers 
@@ -359,7 +370,7 @@ WHERE awardid = 'TSN Manager of the Year'
 GROUP BY playerid
 HAVING COUNT(DISTINCT lgid)=2;
 
-
+-----using selfjoin---------------------------
 
 SELECT DISTINCT(playerid)
 FROM awardsmanagers AS S1 INNER JOIN awardsmanagers AS S2
@@ -369,26 +380,10 @@ WHERE S1.awardid = 'TSN Manager of the Year'
 	AND S1.lgid = 'AL'
 	AND S2.lgid = 'NL';
 
------checking for players------gives me NL for 3 diff years
-SELECT *
-FROM awardsmanagers
-WHERE playerid = 'leylaji99' AND awardid = 'TSN Manager of the Year' 
-	AND lgid IN ('AL', 'NL');
--------this gives only 2 results so this looks correct---
-SELECT *
-FROM awardsmanagers
-WHERE playerid = 'johnsda02' AND awardid = 'TSN Manager of the Year' 
-	AND lgid IN ('AL', 'NL');
+
 
 ---------------
 
-SELECT DISTINCT(playerid)
-FROM awardsmanagers AS S1 INNER JOIN awardsmanagers AS S2
-							USING (playerid)
-WHERE S1.awardid = 'TSN Manager of the Year'
-	AND S2.awardid = 'TSN Manager of the Year'
-	AND S1.lgid = 'AL'
-	AND S2.lgid = 'NL';
 
 
 SELECT DISTINCT people.playerid, 
@@ -411,17 +406,20 @@ WHERE S1.awardid = 'TSN Manager of the Year'
 	AND S1.lgid = 'AL'
 	AND S2.lgid = 'NL';
 
---------
-
-SELECT *
-FROM awardsmanagers
-WHERE lgid = 'AL' and awardid = 'TSN Manager of the Year')
-
-SELECT *
-FROM awardsmanagers
-WHERE lgid = 'NL' and awardid = 'TSN Manager of the Year';
+-------approatch using CTE----------????
 
 
+WITH both_league AS (
+					SELECT DISTINCT
+						S1.playerid,
+						S1.yearid AS AL_year,
+						S2.yearid AS NL_year
+					FROM awardsmanagers AS S1 INNER JOIN awardsmanagers AS S2
+							USING (playerid)
+					WHERE S1.awardid = 'TSN Manager of the Year'
+						AND S2.awardid = 'TSN Manager of the Year'
+						AND S1.lgid = 'AL'
+						AND S2.lgid = 'NL')
 
 
 
@@ -431,20 +429,162 @@ WHERE lgid = 'NL' and awardid = 'TSN Manager of the Year';
 10. Find all players who hit their career highest number of home runs 
 in 2016. Consider only players who have played in the league 
 for at least 10 years, and who hit at least one home run in  2016. 
-Report the players' first and last names and the number of home runs 
-they hit in 2016.
+Report the players first and last names and the number of home runs they hit in 2016.
 
+
+---------------------
 
 SELECT *
+FROM batting;
+
+--find players who played for atleast 10 years-----
+
+
+SELECT playerid, COUNT (DISTINCT(yearid)) AS years_played
+FROM batting
+GROUP BY playerid
+HAVING count(Distinct(yearid)) >=10;
+
+
+---find max home run for max hr in season----
+
+SELECT playerid, yearid, max(hr) AS max_season_hr
+FROM batting
+GROUP BY playerid, yearid;
+
+---career high hr-------
+
+
+
+SELECT 
+
+-----------------find distinct 10 or more years-----
+
+SELECT playerid, COUNT(DISTINCT(yearid)) AS numbers_distinct_10years
+FROM batting
+group by playerid
+HAving COUNT(DISTINCT(yearid)) >=10;
+
+---hr in 2016------
+
+SELECT playerid, SUM(hr) AS total_hr
+FROM batting
+WHERE yearid = 2016 
+GROUP BY playerid;
+
+
+---------------------------------------------------------------------
+WITH playing_10_years AS (
+    SELECT 
+        playerid,
+        COUNT(DISTINCT yearid) AS number_of_years
+    FROM batting
+    GROUP BY playerid
+    HAVING COUNT(DISTINCT yearid) >= 10
+),
+
+season_hr AS (
+    SELECT 
+        playerid,
+        yearid,
+        SUM(hr) AS season_hr
+    FROM batting
+    GROUP BY playerid, yearid
+),
+
+career_highest_hr AS (
+    SELECT 
+        playerid,
+        MAX(season_hr) AS career_high_hr
+    FROM season_hr
+    GROUP BY playerid
+),
+
+hr_2016 AS (
+    SELECT 
+        playerid,
+        SUM(hr) AS hr_2016
+    FROM batting
+    WHERE yearid = 2016
+    GROUP BY playerid
+)
+
+SELECT
+    p.namefirst AS first_name,
+    p.namelast AS last_name,
+    h.hr_2016 AS home_runs_2016
+FROM playing_10_years y
+INNER JOIN career_highest_hr c
+    ON y.playerid = c.playerid
+INNER JOIN hr_2016 h
+    ON y.playerid = h.playerid
+INNER JOIN people p
+    ON y.playerid = p.playerid
+WHERE h.hr_2016 = c.career_high_hr
+  AND h.hr_2016 >= 1
+ORDER BY h.hr_2016 DESC, p.namelast;
+
+--------------------------------------------------------------------------
+
+11. Is there any correlation between number of wins and 
+team salary? Use data from 2000 and later to answer this question.
+As you do this analysis, keep in mind that salaries across 
+the whole league tend to increase together, 
+so you may want to look on a year-by-year basis.
+----------------------------------------------------------------------
+
+SELECT yearid, teamid, W
 FROM teams
-WHERE yearid = 2016 AND g>=10 and hr >=1;
+order by yearid;
 
 SELECT *
-FROM appearances INNER JOIN teams
-					USING (yearid, teamid)
-WHERE yearid = 2016 AND g_all >= 10 AND hr >=1;
+FROM salaries;
 
+SELECT *
+FROM teams;
 
+SELECT  teamid, SUM(w) AS wins, SUM(salary) AS salary
+FROM teams INNER JOIN salaries
+			USING (yearid, teamid)
+WHERE yearid >=2000
+GROUP By teamid
+ORDER BY wins DESC;
 
+------------------------------------------------------------------------------
+12. In this question, you will explore the connection between 
+number of wins and attendance.
+    <ol type="a">
+      <li>Does there appear to be any correlation between 
+	  attendance at home games and number of wins? </li>
+      <li>Do teams that win the world series see a boost 
+	  in attendance the following year? What about teams 
+	  that made the playoffs? Making the playoffs means 
+	  either being a division winner or a wild card winner.</li>
+    </ol> 
+-----------------------------------------------------------------------------
 
+1
+SELECT teamid, SUM(ghome) AS ghome, SUM(attendance) AS attendance
+FROM teams
+WHERE attendance IS NOT NULL AND ghome IS NOT NULL
+GROUP BY teamid
+ORDER BY ghome DESC;
 
+2
+SELECT teamid, yearid, SUM(attendance) AS attendance
+FROM teams
+WHERE wswin IS NOT NULL 
+			AND attendance IS NOT NULL
+			AND wswin = 'Y'
+GROUP BY teamid, yearid
+ORDER BY teamid;
+
+3
+SELECT teamid, yearid, SUM(attendance) AS attendance
+FROM teams
+WHERE divwin IS NOT NULL 
+		AND wcwin IS NOT NULL
+		AND divwin = 'Y'
+		OR wcwin = 'Y'
+GROUP BY yearid, teamid
+ORDER BY teamid;
