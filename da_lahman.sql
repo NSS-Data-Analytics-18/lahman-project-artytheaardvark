@@ -26,8 +26,8 @@ LIMIT 1;
 ----inner joit teams table to get the name of team---
 SELECT *
 FROM people INNER JOIN appearances
-		USING (playerid)
-			JOIN teams 
+			USING (playerid)
+			INNER JOIN teams 
     		ON appearances.teamID = teams.teamID
     		AND appearances.yearID = teams.yearID
 WHERE height IS NOT NULL AND playerid = 'gaedeed01';
@@ -165,16 +165,25 @@ Do you see any trends?
 
 ----------------------------------------------------------------------
 
--------home run--------
+SELECT *
+FROM teams;
+-------
+SELECT yearid, SUM(hr):: numeric/SUM(g):: numeric AS avg_so_game
+FROM teams
+group by yearid;
 
-SELECT (yearid/10 *10) AS decade, ROUND(SUM(hr):: numeric/SUM(g):: numeric, 2) AS avg_so_game
+
+--------strike outs-------------------
+
+SELECT (yearid/10 *10) AS decade, ROUND(SUM(so):: numeric/SUM(g):: numeric, 2) AS avg_so_game
 FROM teams
 WHERE yearid >= 1920
 GROUP BY decade
 ORDER BY decade DESC;
---------strike outs-------------------
 
-SELECT (yearid/10 *10) AS decade, ROUND(SUM(so):: numeric/SUM(g):: numeric, 2) AS avg_so_game
+-------home run--------
+
+SELECT (yearid/10 *10) AS decade, ROUND(SUM(hr):: numeric/SUM(g):: numeric, 2) AS avg_hr_game
 FROM teams
 WHERE yearid >= 1920
 GROUP BY decade
@@ -196,10 +205,6 @@ WHERE yearid = 2016;
 
 ------Success = sb successfully/sb success + cs unsuccess
 
-SELECT playerid, sb, cs --(sb/NULLIF((sb + cs), 0)) AS percentage_success_sb
-FROM batting
-WHERE yearid = 2016 AND sb >=20
-ORDER BY sb DESC;
 
 -------trying to find percentage of success sb----
 
@@ -209,7 +214,7 @@ WHERE yearid = 2016 AND (sb + cs)>=20
 ORDER BY percentage_success_sb DESC;
 
 
---------------------------------------------------
+---------------------another way-----------------------------
 SELECT PlayerID, SB, CS,
     CASE
         WHEN COALESCE(SB, 0) + COALESCE(CS, 0) = 0 THEN 0
@@ -247,7 +252,7 @@ WHERE wswin = 'N'
 	AND yearid BETWEEN 1970 AND 2016
 ORDER BY w DESC;
 
------did sum of wins to get total_win by team that did not win 
+ 
 ----world series --largest w Seatles Mariners 116-----
 
 
@@ -298,7 +303,7 @@ WITH most_wins AS (
 			AND teams.w = most_wins.max_wins)
 			
 SELECT COUNT (*) AS number_of_wins,
-		COUNT (*)*100.0/47 AS percentage
+		COUNT (*)*100.0/46 AS percentage
 FROM most_wins_teams
 WHERE wswin = 'Y';
 
@@ -358,7 +363,8 @@ WHERE wswin = 'Y';
 
  --------------------------------------------------------------
 
-
+SELECT *
+FROM awardsmanagers;
 
 
 --finding distinct player using having count function-----
@@ -385,10 +391,8 @@ WHERE S1.awardid = 'TSN Manager of the Year'
 ---------------
 
 
-
 SELECT DISTINCT people.playerid, 
-				people.namefirst, 
-				people.namelast,
+				CONCAT(people.namefirst, ' ', people.namelast) AS full_name,
 				name,
 				teams.yearid
 FROM awardsmanagers AS S1 INNER JOIN awardsmanagers AS S2
@@ -426,7 +430,8 @@ WITH both_league AS (
 
 --------------------------------------------------------------------------------------------
 
-10. Find all players who hit their career highest number of home runs 
+10. Find all players who hit their career highest number of 
+home runs 
 in 2016. Consider only players who have played in the league 
 for at least 10 years, and who hit at least one home run in  2016. 
 Report the players first and last names and the number of home runs they hit in 2016.
@@ -437,33 +442,13 @@ Report the players first and last names and the number of home runs they hit in 
 SELECT *
 FROM batting;
 
---find players who played for atleast 10 years-----
 
-
-SELECT playerid, COUNT (DISTINCT(yearid)) AS years_played
-FROM batting
-GROUP BY playerid
-HAVING count(Distinct(yearid)) >=10;
-
-
----find max home run for max hr in season----
+---find max home run  in season----
 
 SELECT playerid, yearid, max(hr) AS max_season_hr
 FROM batting
-GROUP BY playerid, yearid;
-
----career high hr-------
-
-
-
-SELECT 
-
------------------find distinct 10 or more years-----
-
-SELECT playerid, COUNT(DISTINCT(yearid)) AS numbers_distinct_10years
-FROM batting
-group by playerid
-HAving COUNT(DISTINCT(yearid)) >=10;
+GROUP BY playerid, yearid
+ORDER BY yearid;
 
 ---hr in 2016------
 
@@ -473,52 +458,62 @@ WHERE yearid = 2016
 GROUP BY playerid;
 
 
+-----------------find distinct 10 or more years-----
+
+SELECT playerid, COUNT(DISTINCT(yearid)) AS numbers_distinct_10years
+FROM batting
+group by playerid
+HAving COUNT(DISTINCT(yearid)) >=10;
+
+
+
+
 ---------------------------------------------------------------------
 WITH playing_10_years AS (
-    SELECT 
-        playerid,
-        COUNT(DISTINCT yearid) AS number_of_years
-    FROM batting
-    GROUP BY playerid
-    HAVING COUNT(DISTINCT yearid) >= 10
-),
+    					SELECT 
+        					playerid,
+        					COUNT(DISTINCT yearid) AS number_of_years
+    					FROM batting
+    					GROUP BY playerid
+    					HAVING COUNT(DISTINCT yearid) >= 10),
 
-season_hr AS (
-    SELECT 
-        playerid,
-        yearid,
-        SUM(hr) AS season_hr
-    FROM batting
-    GROUP BY playerid, yearid
-),
 
-career_highest_hr AS (
-    SELECT 
-        playerid,
-        MAX(season_hr) AS career_high_hr
-    FROM season_hr
-    GROUP BY playerid
-),
+	season_hr AS (
+    			SELECT 
+       	 			playerid,
+        			yearid,
+        			SUM(hr) AS season_hr
+    			FROM batting
+    			GROUP BY playerid, yearid),
 
-hr_2016 AS (
-    SELECT 
-        playerid,
-        SUM(hr) AS hr_2016
-    FROM batting
-    WHERE yearid = 2016
-    GROUP BY playerid
-)
+
+	career_highest_hr AS (
+    			SELECT 
+        			playerid,
+        			MAX(season_hr) AS career_high_hr
+    			FROM season_hr
+    			GROUP BY playerid),
+
+
+	hr_2016 AS (
+    		SELECT 
+        		playerid,
+        		SUM(hr) AS hr_2016
+    		FROM batting
+    		WHERE yearid = 2016
+    		GROUP BY playerid)
+
 
 SELECT
     p.namefirst AS first_name,
     p.namelast AS last_name,
     h.hr_2016 AS home_runs_2016
 FROM playing_10_years y
-INNER JOIN career_highest_hr c
+	INNER JOIN career_highest_hr c
     ON y.playerid = c.playerid
-INNER JOIN hr_2016 h
+	INNER JOIN hr_2016 h
     ON y.playerid = h.playerid
-INNER JOIN people p
+	INNER JOIN people p
     ON y.playerid = p.playerid
 WHERE h.hr_2016 = c.career_high_hr
   AND h.hr_2016 >= 1
@@ -543,12 +538,12 @@ FROM salaries;
 SELECT *
 FROM teams;
 
-SELECT  teamid, SUM(w) AS wins, SUM(salary) AS salary
+SELECT  teamid, yearid, SUM(w) AS wins, SUM(salary) AS salary
 FROM teams INNER JOIN salaries
 			USING (yearid, teamid)
 WHERE yearid >=2000
-GROUP By teamid
-ORDER BY wins DESC;
+GROUP By teamid, yearid
+ORDER BY yearid, salary;
 
 ------------------------------------------------------------------------------
 12. In this question, you will explore the connection between 
@@ -588,3 +583,19 @@ WHERE divwin IS NOT NULL
 		OR wcwin = 'Y'
 GROUP BY yearid, teamid
 ORDER BY teamid;
+
+----------------------------------------------------------------------------
+
+13. It is thought that since left-handed pitchers 
+are more rare, causing batters to face them 
+less often, that they are more effective. 
+Investigate this claim and present evidence to 
+either support or dispute this claim. 
+First, determine just how rare left-handed pitchers
+are compared with right-handed pitchers. 
+Are left-handed pitchers more likely to win the 
+Cy Young Award? Are they more likely to make it 
+into the hall of fame?
+--------------------------------------------------------------------------------------
+
+
