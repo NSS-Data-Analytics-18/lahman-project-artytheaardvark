@@ -404,7 +404,7 @@ FROM awardsmanagers AS S1 INNER JOIN awardsmanagers AS S2
 							INNER JOIN teams
 							ON managers.yearid = teams.yearid
 							 AND managers.teamid = teams.teamid
-							 AND S1.yearid = managers.yearid
+							 
 WHERE S1.awardid = 'TSN Manager of the Year'
 	AND S2.awardid = 'TSN Manager of the Year'
 	AND S1.lgid = 'AL'
@@ -443,7 +443,8 @@ SELECT *
 FROM batting;
 
 
----find max home run  in season----
+---find max home run from batting table----
+
 
 SELECT playerid, yearid, max(hr) AS max_season_hr
 FROM batting
@@ -452,10 +453,12 @@ ORDER BY yearid;
 
 ---hr in 2016------
 
-SELECT playerid, SUM(hr) AS total_hr
+SELECT playerid, MAX(hr) AS total_hr
 FROM batting
 WHERE yearid = 2016 
 GROUP BY playerid;
+
+
 
 
 -----------------find distinct 10 or more years-----
@@ -464,6 +467,8 @@ SELECT playerid, COUNT(DISTINCT(yearid)) AS numbers_distinct_10years
 FROM batting
 group by playerid
 HAving COUNT(DISTINCT(yearid)) >=10;
+
+
 
 
 
@@ -498,7 +503,7 @@ WITH playing_10_years AS (
 	hr_2016 AS (
     		SELECT 
         		playerid,
-        		SUM(hr) AS hr_2016
+        		MAX(hr) AS hr_2016
     		FROM batting
     		WHERE yearid = 2016
     		GROUP BY playerid)
@@ -518,6 +523,32 @@ FROM playing_10_years y
 WHERE h.hr_2016 = c.career_high_hr
   AND h.hr_2016 >= 1
 ORDER BY h.hr_2016 DESC, p.namelast;
+-----------------------------------------------
+--finding max hr from batting table-----
+
+SELECT playerid, yearid, max(hr)
+FROM batting
+GROUP BY playerid, yearid
+ORDER BY yearid;
+
+---hr in 2016-----
+
+SELECT playerid, yearid,  max(hr) AS hr_2016
+FROM batting
+WHERE yearid = 2016
+GROUP by playerid, yearid;
+
+---intersect-----
+
+(SELECT playerid, yearid, max(hr)
+FROM batting
+GROUP BY playerid, yearid
+ORDER BY yearid)
+INTERSECT
+(SELECT playerid, yearid,  max(hr) AS hr_2016
+FROM batting
+WHERE yearid = 2016
+GROUP by playerid, yearid);
 
 --------------------------------------------------------------------------
 
@@ -543,7 +574,7 @@ FROM teams INNER JOIN salaries
 			USING (yearid, teamid)
 WHERE yearid >=2000
 GROUP By teamid, yearid
-ORDER BY yearid, salary;
+ORDER BY wins DESC, salary;
 
 ------------------------------------------------------------------------------
 12. In this question, you will explore the connection between 
@@ -559,30 +590,30 @@ number of wins and attendance.
 -----------------------------------------------------------------------------
 
 1
-SELECT teamid, SUM(ghome) AS ghome, SUM(attendance) AS attendance
+SELECT name, yearid, w, ghome, attendance
 FROM teams
 WHERE attendance IS NOT NULL AND ghome IS NOT NULL
-GROUP BY teamid
-ORDER BY ghome DESC;
+ORDER BY name, yearid; 
+
+SELECT *
+FROM teams;
 
 2
-SELECT teamid, yearid, SUM(attendance) AS attendance
+SELECT name, yearid, divwin, wcwin, ghome, wswin, attendance 
 FROM teams
 WHERE wswin IS NOT NULL 
 			AND attendance IS NOT NULL
-			AND wswin = 'Y'
-GROUP BY teamid, yearid
+			AND divwin IS NOT NULL 
+			AND wcwin IS NOT NULL
+			AND ghome IS NOT NULL
 ORDER BY teamid;
 
 3
-SELECT teamid, yearid, SUM(attendance) AS attendance
+SELECT name, yearid, divwin, wcwin, w, attendance
 FROM teams
 WHERE divwin IS NOT NULL 
 		AND wcwin IS NOT NULL
-		AND divwin = 'Y'
-		OR wcwin = 'Y'
-GROUP BY yearid, teamid
-ORDER BY teamid;
+ORDER BY name, yearid;
 
 ----------------------------------------------------------------------------
 
@@ -598,4 +629,5 @@ Cy Young Award? Are they more likely to make it
 into the hall of fame?
 --------------------------------------------------------------------------------------
 
-
+SELECT *
+FROM pitching;
