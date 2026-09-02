@@ -174,7 +174,7 @@ WITH award_winners AS (
 )
 
 SELECT
-    people.namegiven,
+   namefirst,namelast, people.namegiven,
     awardsmanagers.yearid,
     teams.name AS team_name
 FROM award_winners
@@ -188,7 +188,7 @@ INNER JOIN people
 INNER JOIN teams
     ON managers.teamid = teams.teamid
 WHERE awardsmanagers.awardid = 'TSN Manager of the Year'
-GROUP BY Namegiven,awardsmanagers.yearid,teams.name
+GROUP BY namefirst,namelast,Namegiven,awardsmanagers.yearid,teams.name
 ORDER BY people.namegiven, awardsmanagers.yearid;
 
 --10--
@@ -196,6 +196,83 @@ ORDER BY people.namegiven, awardsmanagers.yearid;
 --Consider only players who have played in the league for at least 10 years,-- 
 --and who hit at least one home run in 2016.-- 
 --Report the players' first and last names and the number of home runs they hit in 2016.--
+WITH career_high AS (
+    SELECT
+        playerid,
+        MAX(hr) AS career_high_hr
+    FROM batting
+    GROUP BY playerid
+),
+hr_2016 AS (
+    SELECT
+        playerid,
+        hr
+    FROM batting
+    WHERE yearid = 2016
+),
+player_years AS (
+    SELECT
+        playerid,
+        COUNT(DISTINCT yearid) AS years_played
+    FROM batting
+    GROUP BY playerid
+)
+SELECT
+    namefirst,namelast,
+    hr_2016.hr
+FROM hr_2016
+INNER JOIN career_high
+    ON hr_2016.playerid = career_high.playerid
+INNER JOIN player_years
+    ON hr_2016.playerid = player_years.playerid
+INNER JOIN people
+	ON hr_2016.playerid = people.playerid
+WHERE hr_2016.hr = career_high.career_high_hr
+    AND hr_2016.hr >= 1
+	AND player_years.years_played >= 10;
+
+--11--
+--Is there any correlation between number of wins and team salary?--
+--Use data from 2000 and later to answer this question. As you do this analysis,--
+--keep in mind that salaries across the whole league tend to increase together,--
+--so you may want to look on a year-by-year basis.--
+SELECT teams.name,teams.yearid,teams.teamid,teams.w,
+    SUM(salaries.salary)::numeric::money AS team_salary,SUM(salaries.salary::numeric / teams.w)::money AS cost_per_win
+FROM salaries
+INNER JOIN teams
+    ON salaries.teamid = teams.teamid
+   AND salaries.yearid = teams.yearid
+WHERE teams.yearid >= 2000
+GROUP BY teams.name,teams.yearid,teams.teamid,teams.w
+ORDER BY teams.name,teams.yearid, teams.w DESC;
+--Although there is not a direct point for point causation there is strong--
+--evidence that salary fluctuations within teams and W/L Ratio are connected--
+
+--12--
+--In this question, you will explore the connection between number of wins and attendance.--
+--Does there appear to be any correlation between attendance at home games and number of wins?--
+--Do teams that win the world series see a boost in attendance the following year?--
+--What about teams that made the playoffs?--
+--Making the playoffs means either being a division winner or a wild card winner.--
+SELECT yearid,name,w,ghome,attendance,wswin,divwin,wcwin
+From teams
+WHERE attendance IS NOT NULL AND ghome IS NOT NULL
+group by yearid,name,w,ghome,attendance,wswin,divwin,wcwin
+order by name,yearid;
+--Although outliers do occur World Series wins do historically bring an increase--
+--in attendance for the following year, Division and Wildcard Wins also trend in a positive direction--
+--attendance wise but do not have as drastic of an effect as a World series win--
+
+--13--
+--It is thought that since left-handed pitchers are more rare, causing batters to face them less often,-- 
+--that they are more effective. Investigate this claim and present evidence to-- 
+--either support or dispute this claim. --
+--First, determine just how rare left-handed pitchers are compared with right-handed pitchers.-- 
+--Are left-handed pitchers more likely to win the Cy Young Award? --
+--Are they more likely to make it into the hall of fame?--
+
+
+
 
 
 
