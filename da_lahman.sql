@@ -404,7 +404,7 @@ FROM awardsmanagers AS S1 INNER JOIN awardsmanagers AS S2
 							INNER JOIN teams
 							ON managers.yearid = teams.yearid
 							 AND managers.teamid = teams.teamid
-							 
+							 AND S1.yearid = managers.yearid
 WHERE S1.awardid = 'TSN Manager of the Year'
 	AND S2.awardid = 'TSN Manager of the Year'
 	AND S1.lgid = 'AL'
@@ -569,12 +569,13 @@ FROM salaries;
 SELECT *
 FROM teams;
 
-SELECT  teamid, yearid, SUM(w) AS wins, SUM(salary) AS salary
+
+SELECT yearid, teamid, w, SUM(salary) AS salary
 FROM teams INNER JOIN salaries
 			USING (yearid, teamid)
 WHERE yearid >=2000
-GROUP By teamid, yearid
-ORDER BY wins DESC, salary;
+GROUP BY yearid, teamid, w
+ORDER BY yearid, w DESC, salary;
 
 ------------------------------------------------------------------------------
 12. In this question, you will explore the connection between 
@@ -598,17 +599,19 @@ ORDER BY name, yearid;
 SELECT *
 FROM teams;
 
-2
-SELECT name, yearid, divwin, wcwin, ghome, wswin, attendance 
+2----yes there is a tred of inc in attendance the following year.
+
+SELECT name, yearid, divwin, wcwin, wswin, ghome, w, attendance 
 FROM teams
 WHERE wswin IS NOT NULL 
 			AND attendance IS NOT NULL
 			AND divwin IS NOT NULL 
 			AND wcwin IS NOT NULL
 			AND ghome IS NOT NULL
-ORDER BY teamid;
+ORDER BY name, yearid;
 
-3
+3 ----yes there is an in in attendance the following year---
+
 SELECT name, yearid, divwin, wcwin, w, attendance
 FROM teams
 WHERE divwin IS NOT NULL 
@@ -628,6 +631,28 @@ Are left-handed pitchers more likely to win the
 Cy Young Award? Are they more likely to make it 
 into the hall of fame?
 --------------------------------------------------------------------------------------
+---R handed pitcher 14480----
+SELECT count(*)
+FROM people
+WHERE throws = 'R';
 
+---L handed pitcher 3654---
+
+SELECT count(*)
+FROM people
+WHERE throws = 'L';
+
+-----Are they more likely to make it 
+into the hall of fame?--------
+----R handed pitchers in hall of fame  3335----
 SELECT *
-FROM pitching;
+FROM halloffame INNER JOIN people
+				USING (playerid)
+WHERE throws ='R';
+
+---L handed pitches in hall of fame 786---
+SELECT *
+FROM halloffame INNER JOIN people
+				USING (playerid)
+WHERE throws ='L';
+
