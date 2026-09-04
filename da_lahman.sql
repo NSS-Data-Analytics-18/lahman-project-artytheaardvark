@@ -642,17 +642,34 @@ SELECT count(*)
 FROM people
 WHERE throws = 'L';
 
+----cy awards R throws got 53 players and L throws 24 out of total 77
+-------------------SO right handed are more likely to get this award--------
+
+SELECT playerid, awardid, throws
+FROM awardsplayers INNER JOIN people
+					USING (playerid)
+WHERE awardid = 'Cy Young Award' AND throws ='L'
+GROUP BY playerid, awardid, throws;
+	
+
 -----Are they more likely to make it 
 into the hall of fame?--------
-----R handed pitchers in hall of fame  3335----
-SELECT *
+----R handed pitchers in hall of fame  231----
+SELECT playerid, votes, inducted, throws
 FROM halloffame INNER JOIN people
 				USING (playerid)
-WHERE throws ='R';
+WHERE throws IS NOT NULL
+	AND inducted = 'Y' AND throws = 'R'
+GROUP BY playerid, votes, inducted, throws;
 
----L handed pitches in hall of fame 786---
-SELECT *
+
+---L handed pitches in hall of fame 52---
+SELECT playerid, votes, inducted, throws
 FROM halloffame INNER JOIN people
 				USING (playerid)
-WHERE throws ='L';
+WHERE throws IS NOT NULL
+	AND inducted = 'Y' AND throws = 'L'
+GROUP BY playerid, votes, inducted, throws;
+
+
 
