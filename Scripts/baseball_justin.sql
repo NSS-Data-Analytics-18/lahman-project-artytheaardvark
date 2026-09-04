@@ -42,7 +42,9 @@ GROUP BY
         WHEN pos IN ('P', 'C') THEN 'Battery'
     END;
 --5--	
-Select round(sum(so)::numeric/sum(g)::numeric,2) as Strikeouts_per_game,round(sum(hr)::numeric/sum(g)::numeric,2) as homeruns_per_game, (yearid / 10) * 10 as decade
+Select round(sum(so)::numeric/sum(g)::numeric,2) as Strikeouts_per_game,
+round(sum(hr)::numeric/sum(g)::numeric,2) as homeruns_per_game,
+(yearid / 10) * 10 as decade
 from teams
 where (yearid / 10) * 10>=1920
 group by decade
@@ -268,9 +270,55 @@ order by name,yearid;
 --that they are more effective. Investigate this claim and present evidence to-- 
 --either support or dispute this claim. --
 --First, determine just how rare left-handed pitchers are compared with right-handed pitchers.-- 
+SELECT
+    CASE
+    WHEN throws = 'L' THEN 'Left'
+    WHEN throws = 'R' THEN 'Right'
+    END AS throwing_hand,
+    COUNT(*) AS player_count
+FROM people
+WHERE throws IN ('L', 'R')
+GROUP BY
+    CASE
+    WHEN throws = 'L' THEN 'Left'
+    WHEN throws = 'R' THEN 'Right'
+    END
+ORDER BY player_count DESC;
+--14480 R 3654 L--
 --Are left-handed pitchers more likely to win the Cy Young Award? --
---Are they more likely to make it into the hall of fame?--
 
+Select playerid,awardid,throws
+from people
+inner join awardsplayers using (playerid)
+where awardid ='Cy Young Award'
+and throws = 'R'
+group by throws,playerid,awardid;
+Select playerid,awardid,throws
+from people
+inner join awardsplayers using (playerid)
+where awardid ='Cy Young Award'
+and throws = 'L'
+group by throws,playerid,awardid;
+--53 right handed 24 Left handed--
+
+
+--Are they more likely to make it into the hall of fame?--
+SELECT
+    CASE
+        WHEN halloffamers.throws = 'L' THEN 'Left'
+        WHEN halloffamers.throws = 'R' THEN 'Right'
+    END AS throwing_hand,
+    COUNT(*) AS player_count
+FROM (
+    SELECT playerid, throws
+    FROM people
+    INNER JOIN halloffame USING (playerid)
+) AS halloffamers
+GROUP BY
+    CASE
+        WHEN halloffamers.throws = 'L' THEN 'Left'
+        WHEN halloffamers.throws = 'R' THEN 'Right'
+    END;
 
 
 
